@@ -8,68 +8,37 @@ compile_error!("target arch should be wasm32: compile with '--target wasm32-unkn
 // `no_std` environment.
 extern crate alloc;
 
-use alloc::string::{String, ToString};
+use alloc::string::{ToString};
 use alloc::vec::Vec;
-// use hex;
 use casper_contract::{
     contract_api::{
-        runtime::{self, get_caller},
-        storage::{self, dictionary_get, dictionary_put},
+        // runtime::{self, get_caller},
+        runtime,
+        storage::{self, dictionary_put},
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    CLType, CLTyped, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter, U512,
+    CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints,
 };
-// use vrf::openssl::{CipherSuite, ECVRF};
-// use vrf::VRF;
 
-const DICT_NAME: &str = "hash_results";
-// const SEED: &[u8] = b"this is the seed";
-// struct Vrf_Result<'a> {
-//     seed: &'a str,
-//     hash: Vec<u8>,
-//     pi: Vec<u8>,
-//     nonce: U512,
-// }
-
-// fn add_result(pi: Vec<u8>, hash: Vec<u8>, seed: &str) {
-//     let dictionary_uref = match runtime::get_key(DICT_NAME) {
-//         Some(uref_key) => uref_key.into_uref().unwrap_or_revert(),
-//         None => storage::new_dictionary(DICT_NAME).unwrap_or_revert(),
-//     };
-
-//     // let pi: Vec<u8> = runtime::get_named_arg("pi");
-//     // let hash: Vec<u8> = runtime::get_named_arg("hash");
-//     // let seed: &str = runtime::get_named_arg("seed");
-
-//     // check if valid combo
-
-//     // store hash
-//     dictionary_put(dictionary_uref, seed, hash);
-
-// }
+const CONTRACT_HASH_KEY: &str = "oracle_contract";
+const CONTRACT_HASH_WRAPPED_KEY: &str = "oracle_contract_wrapped";
+const DICTIONARY_NAME: &str = "hash_results";
+const SEED: &str = "this is the seed";
 
 #[no_mangle]
 pub extern "C" fn generate() {
-    // let mut vrf = ECVRF::from_suite(CipherSuite::SECP256K1_SHA256_TAI).unwrap();
-
-    // let secret_key = hex::decode("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721").unwrap();
     let start_str = "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721";
-    // let public_key = vrf.derive_public_key(&secret_key).unwrap();
-    
-    // let pi = vrf.prove(&secret_key, &SEED).unwrap();
-    // let hash = vrf.proof_to_hash(&pi).unwrap();
+
     let hash = start_str.to_string();
 
-    // temporarily
-    let dictionary_uref = match runtime::get_key(&DICT_NAME) {
+    let dictionary_uref = match runtime::get_key(&DICTIONARY_NAME) {
         Some(uref_key) => uref_key.into_uref().unwrap_or_revert(),
-        None => storage::new_dictionary(&DICT_NAME).unwrap_or_revert(),
+        None => storage::new_dictionary(&DICTIONARY_NAME).unwrap_or_revert(),
     };
 
-    dictionary_put(dictionary_uref, "this is the seed", hash);
-    // temporarily
+    dictionary_put(dictionary_uref, SEED, hash);
 }
 
 #[no_mangle]
@@ -89,7 +58,7 @@ pub extern "C" fn call() {
         Some("contract_package_hash".to_string()),
         Some("access_token".to_string()),
     );
-    runtime::put_key("oracle_contract", contract_hash.into());
-    runtime::put_key("oracle_contract_wrapped", storage::new_uref(contract_hash).into());
+    runtime::put_key(CONTRACT_HASH_KEY, contract_hash.into());
+    runtime::put_key(CONTRACT_HASH_WRAPPED_KEY, storage::new_uref(contract_hash).into());
 }
 
