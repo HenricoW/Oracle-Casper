@@ -19,7 +19,7 @@ const CONTRACT_HASH_KEY: &str = "oracle_contract";
 const CONTRACT_HASH_WRAPPED_KEY: &str = "oracle_contract_wrapped";
 const DICTIONARY_NAME: &str = "hash_results";
 const GENERATE_EP: &str = "generate";
-const SEED: &[u8] = b"this is the seed";
+const SEED: &str = "this is the seed";
 
 impl Contract {
     pub fn deploy() -> Contract {
@@ -101,7 +101,7 @@ impl Contract {
 
     pub fn query_dictionary_value<T: CLTyped + FromBytes>(
         &self,
-        key: &[u8],
+        key: &str,
     ) -> T {
         let contract_hash : HashAddr = self.query(CONTRACT_HASH_WRAPPED_KEY);
 
@@ -120,7 +120,7 @@ pub fn query_dictionary_item(
     builder: &InMemoryWasmTestBuilder,
     key: Key,
     dictionary_name: Option<String>,
-    dictionary_item_key: &[u8],
+    dictionary_item_key: &str,
 ) -> Result<StoredValue, String> {
     let empty_path = vec![];
     let dictionary_key_bytes = dictionary_item_key.as_bytes();
@@ -160,12 +160,16 @@ pub fn query_dictionary_item(
 #[test]
 fn test_deploy() {
     let mut contract = Contract::deploy();
+
+    // set value
     contract.call(
         CONTRACT_HASH_KEY,
         GENERATE_EP,
         runtime_args! {},
         [2u8; 32],
     );
-    let score: U512 = contract.query_dictionary_value(contract.account_addr.to_string());
-    assert_eq!(score, U512::from(100_u64));
+
+    // get value
+    let value: String = contract.query_dictionary_value(SEED);
+    assert_eq!(value, "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721".to_string());
 }
