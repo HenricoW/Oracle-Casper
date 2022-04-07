@@ -5,7 +5,10 @@ build-contract:
 	cd contract && cargo build --release --target wasm32-unknown-unknown
 	wasm-strip contract/target/wasm32-unknown-unknown/release/main.wasm 2>/dev/null | true
 
-test: build-contract
+build-contract-test:
+	cd contract && cargo build --target wasm32-unknown-unknown
+
+test: build-contract-test
 	mkdir -p tests/wasm
 	cp contract/target/wasm32-unknown-unknown/release/main.wasm tests/wasm
 	cd tests && cargo test
