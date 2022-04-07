@@ -8,18 +8,32 @@ use casper_engine_test_support::{
 use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::bytesrepr::{FromBytes, ToBytes};
 use casper_types::system::mint;
-use casper_types::{account::AccountHash, runtime_args, PublicKey, RuntimeArgs, SecretKey, U512};
+use casper_types::{account::AccountHash, runtime_args, PublicKey, RuntimeArgs, SecretKey, U512, U128};
 use casper_types::{CLTyped, Key, StoredValue, HashAddr};
+use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
-pub struct Contract {
-    pub builder: WasmTestBuilder<InMemoryGlobalState>,
-    pub account_addr: AccountHash,
-}
 const CONTRACT_HASH_KEY: &str = "oracle_contract";
 const CONTRACT_HASH_WRAPPED_KEY: &str = "oracle_contract_wrapped";
 const DICTIONARY_NAME: &str = "hash_results";
 const GENERATE_EP: &str = "generate";
 const SEED: &str = "this is the seed";
+
+const REG_INIT_EP: &str = "reg_init";
+const REGISTER_EP: &str = "register";
+const PROVIDER_DICT: &str = "provider_dictionary";
+const NUM_OF_PROVIDERS: &str = "num_of_providers";
+
+#[derive(CLTyped, ToBytes, FromBytes)]
+struct Provider {
+    is_provider: bool,
+    provider_id: u32,
+    pending_balance: U128,
+}
+
+pub struct Contract {
+    pub builder: WasmTestBuilder<InMemoryGlobalState>,
+    pub account_addr: AccountHash,
+}
 
 impl Contract {
     pub fn deploy() -> Contract {
@@ -72,16 +86,16 @@ impl Contract {
     }
 
     /// Function that handles the creation and running of sessions.
-    pub fn call(&mut self, contract: &str, method: &str, args: RuntimeArgs, deploy: [u8; 32]) {
+    pub fn call(&mut self, contract: &str, method: &str, args: RuntimeArgs) {
         let deploy = DeployItemBuilder::new()
             .with_empty_payment_bytes(runtime_args! {ARG_AMOUNT => *DEFAULT_PAYMENT})
-            .with_stored_session_named_key(contract, method, args)
-            .with_address(self.account_addr)
-            .with_deploy_hash(deploy)
             .with_authorization_keys(&[self.account_addr])
+            .with_address(self.account_addr)
+            .with_stored_session_named_key(contract, method, args)
+            // .with_deploy_hash(deploy)
             .build();
         let execute_request = ExecuteRequestBuilder::from_deploy_item(deploy).build();
-        self.builder.exec(execute_request).expect_success().commit();
+        self.builder.exec(execute_request).commit().expect_success();
     }
 
     pub fn query<T: CLTyped + FromBytes + ToBytes>(&self, key_name: &str) -> T {
@@ -112,6 +126,38 @@ impl Contract {
             .clone()
             .into_t()
             .expect("Wrong type in query result.")
+    }
+
+    // get number of providers
+    fn get_provider_count(&self) -> u32 {
+        self.builder
+            .query(
+                None, 
+                Key::Account(self.account_addr), 
+                &[CONTRACT_HASH_KEY.to_string(), NUM_OF_PROVIDERS.to_string()]
+            )
+            .expect("Should be a stored value")
+            .as_cl_value()
+            .expect("Should be a CL value")
+            .clone()
+            .into_t::<u32>()
+            .expect("Should be u32")
+    }
+
+    pub fn call_reg_init(&mut self) {
+        self.call(
+            CONTRACT_HASH_KEY,
+            REG_INIT_EP,
+            runtime_args! {},
+        )
+    }
+
+    pub fn call_register(&mut self) {
+        self.call(
+            CONTRACT_HASH_KEY,
+            REGISTER_EP,
+            runtime_args! {},
+        )
     }
 
 }
@@ -166,10 +212,34 @@ fn test_deploy() {
         CONTRACT_HASH_KEY,
         GENERATE_EP,
         runtime_args! {},
-        [2u8; 32],
     );
-
+    
     // get value
     let value: String = contract.query_dictionary_value(SEED);
     assert_eq!(value, "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721".to_string());
+}
+
+#[test]
+fn should_get_provider_count() {
+    let mut contract = Contract::deploy();
+    contract.call_reg_init();
+
+    let count: u32 = contract.query_dictionary_value(NUM_OF_PROVIDERS);
+    assert_eq!(count, 0_u32);
+}
+
+#[test]
+fn should_inc_provider_count() {
+    let mut contract = Contract::deploy();
+    contract.call_reg_init();
+
+    let count: u32 = contract.query_dictionary_value(NUM_OF_PROVIDERS);
+    assert_eq!(count, 0_u32);
+    
+    contract.call_register();
+    contract.call_register();
+    contract.call_register();
+
+    let count: u32 = contract.query_dictionary_value(NUM_OF_PROVIDERS);
+    assert_eq!(count, 3_u32);
 }
