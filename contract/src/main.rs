@@ -26,10 +26,10 @@ use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
 const CONTRACT_HASH_KEY: &str = "oracle_contract";
 const CONTRACT_HASH_WRAPPED_KEY: &str = "oracle_contract_wrapped";
-const DICTIONARY_NAME: &str = "hash_results";
+const DICTIONARY_NAME: &str = "oracle_store";
 const SEED: &str = "this is the seed";
 
-const PROVIDER_DICT: &str = "provider_dictionary";
+const PROVIDER_INFO: &str = "provider_info";
 const NUM_OF_PROVIDERS: &str = "num_of_providers";
 
 #[derive(CLTyped, ToBytes, FromBytes)]
@@ -61,32 +61,16 @@ pub extern "C" fn register() {
         .unwrap_or_revert_with(ApiError::MissingKey)
         .unwrap_or_revert_with(ApiError::ValueNotFound);
 
+    let provider_obj = Provider{
+        is_provider: true,
+        provider_id: prov_count,
+        pending_balance: U128::from(0_u128),
+    };
+
+    dictionary_put(dictionary_uref, &get_caller().to_string(), provider_obj);
+
     prov_count += 1;
     dictionary_put(dictionary_uref, NUM_OF_PROVIDERS, prov_count);
-
-
-    // let prov_count_uref = runtime::get_key(&NUM_OF_PROVIDERS)
-    //     .unwrap_or_revert_with(ApiError::MissingKey)
-    //     .into_uref()
-    //     .unwrap_or_revert_with(ApiError::UnexpectedKeyVariant);
-
-    // let mut provider_count: u32 = storage::read(prov_count_uref)
-    //     .unwrap_or_revert_with(ApiError::Read)
-    //     .unwrap_or_revert_with(ApiError::ValueNotFound);
-
-    // storage::add(prov_count_uref, 1);
-    // provider_count += 1;
-
-    // storage::write(prov_count_uref, provider_count);
-
-    // let provider_obj = Provider{
-    //     is_provider: true,
-    //     provider_id: provider_count,
-    //     pending_balance: U128::from(0_u128),
-    // };
-
-    // dictionary_put(dictionary_uref, &get_caller().to_string(), provider_obj);
-    // dictionary_put(dictionary_uref, NUM_OF_PROVIDERS, 4_u32);
 }
 
 #[no_mangle]

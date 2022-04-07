@@ -14,13 +14,13 @@ use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
 const CONTRACT_HASH_KEY: &str = "oracle_contract";
 const CONTRACT_HASH_WRAPPED_KEY: &str = "oracle_contract_wrapped";
-const DICTIONARY_NAME: &str = "hash_results";
+const DICTIONARY_NAME: &str = "oracle_store";
 const GENERATE_EP: &str = "generate";
 const SEED: &str = "this is the seed";
 
 const REG_INIT_EP: &str = "reg_init";
 const REGISTER_EP: &str = "register";
-const PROVIDER_DICT: &str = "provider_dictionary";
+const PROVIDER_INFO: &str = "provider_info";
 const NUM_OF_PROVIDERS: &str = "num_of_providers";
 
 #[derive(CLTyped, ToBytes, FromBytes)]
@@ -237,9 +237,25 @@ fn should_inc_provider_count() {
     assert_eq!(count, 0_u32);
     
     contract.call_register();
-    contract.call_register();
-    contract.call_register();
+    // contract.call_register();
+    // contract.call_register();
 
     let count: u32 = contract.query_dictionary_value(NUM_OF_PROVIDERS);
-    assert_eq!(count, 3_u32);
+    assert_eq!(count, 1_u32);
+}
+
+#[test]
+fn should_capture_provider_info() {
+    let mut contract = Contract::deploy();
+    contract.call_reg_init();
+    
+    contract.call_register();
+
+    let prov: Provider = contract.query_dictionary_value(contract.account_addr.to_string().as_str());
+    assert_eq!(prov.is_provider, true);
+    assert_eq!(prov.provider_id, 0_u32);
+    assert_eq!(prov.pending_balance, U128::from(0_u128));
+
+    let count: u32 = contract.query_dictionary_value(NUM_OF_PROVIDERS);
+    assert_eq!(count, 1_u32);
 }
